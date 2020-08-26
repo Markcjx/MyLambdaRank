@@ -39,6 +39,14 @@ class RankerNN(object):
         """
         Build Keras Ranker NN model (Ranknet / LambdaRank NN).
         """
+        def share_layer(query1,query2):
+            lstm1 = Bidirectional(LSTM(32, return_sequences=True,activation='relu'),merge_mode='concat')
+            lstm2 = Bidirectional(LSTM(32, return_sequences=True,activation='relu'),merge_mode='concat')
+            query1 = lstm1(query1)
+            query1 = lstm2(query1)
+            query2 = lstm1(query2)
+            query2 = lstm2(query2)
+            return query1,query2
         # Neural network structure
         hidden_layers = []
         for i in range(len(hidden_layer_sizes)):
@@ -50,24 +58,15 @@ class RankerNN(object):
         query_2 = Input(shape=(query_shape,), name='query_2')
         title_2 = Input(shape=(title_shape,), name='title_2')
         embedding_layer = Embedding(input_dim=embedding_dim, output_dim=200, name='embedding')
-        lstm1 = Bidirectional(LSTM(32, activation='relu'))
-        lstm2 = Bidirectional(LSTM(32, activation='relu'))
+
         dist = ManDist()
         emd_q1 = embedding_layer(query_1)
         emd_t1 = embedding_layer(title_1)
         emd_q2 = embedding_layer(query_2)
         emd_t2 = embedding_layer(title_2)
 
-        rep_q1 = lstm1(emd_q1)
-        rep_t1 = lstm1(emd_t1)
-        rep_q2 = lstm1(emd_q2)
-        rep_t2 = lstm1(emd_t2)
-
-        rep_q1 = lstm2(rep_q1)
-        rep_t1 = lstm2(rep_t1)
-        rep_q2 = lstm2(rep_q2)
-        rep_t2 = lstm2(rep_t2)
-
+        rep_q1,rep_q2 = share_layer(emd_q1,emd_q2)
+        rep_t1, rep_t2 = share_layer(emd_t1, emd_t2)
         q1_t1_dist = dist([rep_q1, rep_t1])
         q2_t2_dist = dist([rep_q2, rep_t2])
 

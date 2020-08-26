@@ -28,7 +28,7 @@ class RankerNN(object):
         """
         if len(hidden_layer_sizes) != len(activation):
             raise ValueError('hidden_layer_sizes and activation should have the same size.')
-        self.model = self._build_model(input_size, hidden_layer_sizes, activation)
+        self.model = self._build_model(query_size,title_size, hidden_layer_sizes, activation)
         self.model.compile(optimizer=solver, loss="binary_crossentropy")
 
     @staticmethod
@@ -259,8 +259,8 @@ class RankNetNN(RankerNN):
 
 class LambdaRankNN(RankerNN):
 
-    def __init__(self, input_size, hidden_layer_sizes=(100,), activation=('relu',), solver='adam'):
-        super(LambdaRankNN, self).__init__(input_size, hidden_layer_sizes, activation, solver)
+    def __init__(self,  query_size,title_size,, hidden_layer_sizes=(100,), activation=('relu',), solver='adam'):
+        super(LambdaRankNN, self).__init__( query_size,title_size, hidden_layer_sizes, activation, solver)
 
     def _transform_pairwise(self, X, y, qid):
         """Transform data into lambdarank pairs with balanced labels

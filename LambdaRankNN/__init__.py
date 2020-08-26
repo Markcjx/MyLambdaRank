@@ -59,7 +59,7 @@ class RankerNN(object):
         title_1 = Input(shape=(title_shape,), name='title_1')
         query_2 = Input(shape=(query_shape,), name='query_2')
         title_2 = Input(shape=(title_shape,), name='title_2')
-        embedding_layer = Embedding(name='embedding')
+        embedding_layer = Embedding(input_dim=200,output_dim=200,name='embedding')
 
         input1_representation = create_representation(query_1,title_1,embedding_layer)
         input2_representation = create_representation(query_2,title_2,embedding_layer)

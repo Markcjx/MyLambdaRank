@@ -35,18 +35,6 @@ class RankerNN(object):
 
     @staticmethod
     def _build_model(query_shape, title_shape, embedding_dim, hidden_layer_sizes, activation):
-        def create_representation(query, title, embeding_layer):
-            def single_representation(_input):
-                repre = Bidirectional(LSTM(32))(_input)
-                return repre
-
-            query_emb = embeding_layer(query)
-            title_emb = embeding_layer(title)
-            query_representation = single_representation(query_emb)
-            title_representation = single_representation(title_emb)
-            man_distance = ManDist()([query_representation, title_representation])
-            sen_representation = concatenate([query_representation, title_representation, man_distance])
-            return sen_representation
 
         """
         Build Keras Ranker NN model (Ranknet / LambdaRank NN).
@@ -62,11 +50,24 @@ class RankerNN(object):
         query_2 = Input(shape=(query_shape,), name='query_2')
         title_2 = Input(shape=(title_shape,), name='title_2')
         embedding_layer = Embedding(input_dim=embedding_dim, output_dim=200, name='embedding')
+        lstm = Bidirectional(LSTM(32))
+        dist = ManDist()
+        emd_q1 = embedding_layer(query_1)
+        emd_t1 = embedding_layer(title_1)
+        emd_q2 = embedding_layer(query_2)
+        emd_t2 = embedding_layer(title_2)
 
-        input1_representation = create_representation(query_1, title_1, embedding_layer)
-        input2_representation = create_representation(query_2, title_2, embedding_layer)
-        x1 = input1_representation
-        x2 = input2_representation
+        rep_q1 = lstm(emd_q1)
+        rep_t1 = lstm(emd_t1)
+        rep_q2 = lstm(emd_q2)
+        rep_t2 = lstm(emd_t2)
+
+        q1_t1_dist = dist([rep_q1,rep_t1])
+        q2_t2_dist = dist([rep_q2, rep_t2])
+
+        x1 = concatenate([rep_q1, rep_t1, q1_t1_dist])
+        x2 = concatenate([rep_q2, rep_t2, q2_t2_dist])
+
         for i in range(len(hidden_layer_sizes)):
             x1 = hidden_layers[i](x1)
             x2 = hidden_layers[i](x2)

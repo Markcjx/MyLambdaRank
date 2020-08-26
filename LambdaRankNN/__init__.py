@@ -157,8 +157,10 @@ class RankerNN(object):
             Model prediction.
         """
         x = np.array(X)
-        ranker_output = K.function([self.model.layers[0].input], [self.model.layers[-3].get_output_at(0)])
-        return ranker_output([x[:,0].tolist(),x[:,1].tolist()])[0].ravel()
+        x1 = np.mat(x[:,0].tolist())
+        x2 = np.mat(x[:,1].tolist())
+        ranker_output = K.function([self.model.layers[0].input,self.model.layers[1].input], [self.model.layers[-3].get_output_at(0)])
+        return ranker_output([x1,x2])[0].ravel()
 
     def evaluate(self, X, y, qid, eval_at=None):
         """Predict and evaluate ndcg@eval_at.

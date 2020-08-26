@@ -31,8 +31,6 @@ class RankerNN(object):
         self.model = self._build_model(query_size,title_size, hidden_layer_sizes, activation)
         self.model.compile(optimizer=solver, loss="binary_crossentropy")
 
-    @staticmethod
-
 
     @staticmethod
     def _build_model(query_shape,title_shape, hidden_layer_sizes, activation):

@@ -1,6 +1,6 @@
-
 from keras import backend as K
-from keras.layers import Activation, Dense, Input, Subtract
+from keras.layers import Activation, Dense, Input, Subtract, Embedding, Bidirectional, LSTM, concatenate
+from .util import ManDist
 from keras.models import Model
 import numpy as np
 import math
@@ -8,7 +8,7 @@ import math
 
 class RankerNN(object):
 
-    def __init__(self, input_size, hidden_layer_sizes=(100,), activation=('relu',), solver='adam'):
+    def __init__(self, query_size,title_size, hidden_layer_sizes=(100,), activation=('relu',), solver='adam'):
         """
         Parameters
         ----------
@@ -32,19 +32,41 @@ class RankerNN(object):
         self.model.compile(optimizer=solver, loss="binary_crossentropy")
 
     @staticmethod
-    def _build_model(input_shape, hidden_layer_sizes, activation):
+
+
+    @staticmethod
+    def _build_model(query_shape,title_shape, hidden_layer_sizes, activation):
+        def create_representation(query, title, embeding_layer):
+            def single_representation(_input):
+                repre = Bidirectional(LSTM(32))(_input)
+                return repre
+
+            query_emb = embeding_layer(query)
+            title_emb = embeding_layer(title)
+            query_representation = single_representation(query_emb)
+            title_representation = single_representation(title_emb)
+            man_distance = ManDist()([query_representation, title_representation])
+            sen_representation = concatenate([query_representation, title_representation, man_distance])
+            return sen_representation
         """
         Build Keras Ranker NN model (Ranknet / LambdaRank NN).
         """
         # Neural network structure
         hidden_layers = []
         for i in range(len(hidden_layer_sizes)):
-            hidden_layers.append(Dense(hidden_layer_sizes[i], activation=activation[i], name=str(activation[i]) + '_layer' + str(i)))
+            hidden_layers.append(
+                Dense(hidden_layer_sizes[i], activation=activation[i], name=str(activation[i]) + '_layer' + str(i)))
         h0 = Dense(1, activation='linear', name='Identity_layer')
-        input1 = Input(shape=(input_shape,), name='Input_layer1')
-        input2 = Input(shape=(input_shape,), name='Input_layer2')
-        x1 = input1
-        x2 = input2
+        query_1 = Input(shape=(query_shape,), name='query_1')
+        title_1 = Input(shape=(title_shape,), name='title_1')
+        query_2 = Input(shape=(query_shape,), name='query_2')
+        title_2 = Input(shape=(title_shape,), name='title_2')
+        embedding_layer = Embedding(name='embedding')
+
+        input1_representation = create_representation(query_1,title_1,embedding_layer)
+        input2_representation = create_representation(query_2,title_2,embedding_layer)
+        x1 = input1_representation
+        x2 = input2_representation
         for i in range(len(hidden_layer_sizes)):
             x1 = hidden_layers[i](x1)
             x2 = hidden_layers[i](x2)
@@ -55,7 +77,7 @@ class RankerNN(object):
         # sigmoid
         out = Activation('sigmoid', name='Activation_layer')(subtracted)
         # build model
-        model = Model(inputs=[input1, input2], outputs=out)
+        model = Model(inputs=[query_1, title_1,query_2,title_2], outputs=out)
         return model
 
     @staticmethod
@@ -102,10 +124,8 @@ class RankerNN(object):
             qid2idcg = [self._CalcDCG(sorted(qid2rel[i], reverse=True)) for i in range(len(qid_unique))]
         return qid2indices, qid2rel, qid2idcg, qid2dcg
 
-
     def _transform_pairwise(self, X, y, qid):
         return None, None, None, None
-
 
     def fit(self, X, y, qid, batch_size=None, epochs=1, verbose=1, validation_split=0.0):
         """Transform data and fit model.
@@ -118,8 +138,8 @@ class RankerNN(object):
         qid: array, shape (n_samples,)
             Query id that represents the grouping of samples.
         """
-        X1_trans, X2_trans, y_trans, weight = self._transform_pairwise(X, y, qid)
-        self.model.fit([X1_trans, X2_trans], y_trans, sample_weight=weight, batch_size=batch_size, epochs=epochs,
+        query_1,title_1, query_2,title_2, y_trans, weight = self._transform_pairwise(X, y, qid)
+        self.model.fit([query_1,title_1, query_2,title_2], y_trans, sample_weight=weight, batch_size=batch_size, epochs=epochs,
                        verbose=verbose, validation_split=validation_split)
         self.evaluate(X, y, qid)
 
@@ -183,8 +203,8 @@ class RankerNN(object):
 
 class RankNetNN(RankerNN):
 
-    def __init__(self, input_size, hidden_layer_sizes=(100,), activation=('relu',), solver='adam'):
-        super(RankNetNN, self).__init__(input_size, hidden_layer_sizes, activation, solver)
+    def __init__(self, query_size,title_size, hidden_layer_sizes=(100,), activation=('relu',), solver='adam'):
+        super(RankNetNN, self).__init__(query_size, title_size,hidden_layer_sizes, activation, solver)
 
     def _transform_pairwise(self, X, y, qid):
         """Transform data into ranknet pairs with balanced labels for
@@ -234,7 +254,7 @@ class RankNetNN(RankerNN):
                         X2.append(X[qid_start_idx + pos_idx])
                         weight.append(1)
                         Y.append(0)
-        return np.asarray(X1), np.asarray(X2), np.asarray(Y), np.asarray(weight)
+        return np.asarray(X1[0]),np.asarray(X1[0])[1], np.asarray(X2[0]), np.asarray(X2[1]),np.asarray(Y), np.asarray(weight)
 
 
 class LambdaRankNN(RankerNN):
@@ -300,4 +320,5 @@ class LambdaRankNN(RankerNN):
                         X2.append(X[qid_start_idx + pos_idx])
                         weight.append(delta)
                         Y.append(0)
-        return np.asarray(X1), np.asarray(X2), np.asarray(Y), np.asarray(weight)
+        return np.asarray(X1[0]), np.asarray(X1[1]), np.asarray(X2[0]), np.asarray(X2[1]), np.asarray(Y), np.asarray(
+            weight)

@@ -155,8 +155,9 @@ class RankerNN(object):
         y_pred: array, shape (n_samples,)
             Model prediction.
         """
+        x = np.array(X)
         ranker_output = K.function([self.model.layers[0].input], [self.model.layers[-3].get_output_at(0)])
-        return ranker_output([X])[0].ravel()
+        return ranker_output([x[:,0].tolist(),x[:,1].tolist()])[0].ravel()
 
     def evaluate(self, X, y, qid, eval_at=None):
         """Predict and evaluate ndcg@eval_at.

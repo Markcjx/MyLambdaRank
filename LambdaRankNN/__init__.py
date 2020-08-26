@@ -259,7 +259,7 @@ class RankNetNN(RankerNN):
 
 class LambdaRankNN(RankerNN):
 
-    def __init__(self,  query_size,title_size,, hidden_layer_sizes=(100,), activation=('relu',), solver='adam'):
+    def __init__(self,  query_size,title_size,hidden_layer_sizes=(100,), activation=('relu',), solver='adam'):
         super(LambdaRankNN, self).__init__( query_size,title_size, hidden_layer_sizes, activation, solver)
 
     def _transform_pairwise(self, X, y, qid):

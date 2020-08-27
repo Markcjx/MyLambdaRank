@@ -42,7 +42,6 @@ class RankerNN(object):
         Build Keras Ranker NN model (Ranknet / LambdaRank NN).
         """
         def _ngram_conv_layers(
-                cls,
                 kernel_count: int,
                 n: int,
                 padding: str,
@@ -92,7 +91,7 @@ class RankerNN(object):
         x1 = flatten(x1)
         x2 = pool_layer(ngram_output2)
         x2 = flatten(x2)
-        
+
         for i in range(len(hidden_layer_sizes)):
             x1 = hidden_layers[i](x1)
             x2 = hidden_layers[i](x2)

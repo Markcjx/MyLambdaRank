@@ -86,12 +86,13 @@ class RankerNN(object):
         ngram_output2 = keras.layers.Concatenate(axis=-1, name='concate2')(ngram_product2)
         pool_layer = keras.layers.MaxPooling2D(pool_size=(3, 3), strides=(1, 1), padding='same')
         flatten = keras.layers.Flatten()
-
+        bn = keras.layers.BatchNormalization()
         x1 = pool_layer(ngram_output1)
         x1 = flatten(x1)
         x2 = pool_layer(ngram_output2)
         x2 = flatten(x2)
-
+        x1 = bn(x1)
+        x2 = bn(x2)
         for i in range(len(hidden_layer_sizes)):
             x1 = hidden_layers[i](x1)
             x2 = hidden_layers[i](x2)

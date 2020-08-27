@@ -1,7 +1,9 @@
 from keras import backend as K
 from keras.layers import Activation, Dense, Input, Subtract, Embedding, Bidirectional, LSTM, concatenate
 from .util import ManDist
+from .match_layer import MatchingLayer
 from keras.models import Model
+import keras
 import numpy as np
 import math
 
@@ -39,14 +41,23 @@ class RankerNN(object):
         """
         Build Keras Ranker NN model (Ranknet / LambdaRank NN).
         """
-        def share_layer(query1,query2):
-            lstm1 = Bidirectional(LSTM(32, return_sequences=True,activation='relu'),merge_mode='concat')
-            lstm2 = Bidirectional(LSTM(32, return_sequences=True,activation='relu'),merge_mode='concat')
-            query1 = lstm1(query1)
-            query1 = lstm2(query1)
-            query2 = lstm1(query2)
-            query2 = lstm2(query2)
-            return query1,query2
+        def _ngram_conv_layers(
+                cls,
+                kernel_count: int,
+                n: int,
+                padding: str,
+                activation: str,
+                name: str = '',
+        ) :
+            layers = [keras.layers.Conv1D(kernel_count,
+                                          kernel_size,
+                                          padding=padding,
+                                          activation=activation, name=name + '_ngram_conv_' + str(kernel_size)) for
+                      kernel_size in
+                      range(1, n + 1)]
+            return layers
+
+
         # Neural network structure
         hidden_layers = []
         for i in range(len(hidden_layer_sizes)):
@@ -59,20 +70,29 @@ class RankerNN(object):
         title_2 = Input(shape=(title_shape,), name='title_2')
         embedding_layer = Embedding(input_dim=embedding_dim, output_dim=200, name='embedding')
 
-        dist = ManDist()
         emd_q1 = embedding_layer(query_1)
         emd_t1 = embedding_layer(title_1)
         emd_q2 = embedding_layer(query_2)
         emd_t2 = embedding_layer(title_2)
 
-        rep_q1,rep_q2 = share_layer(emd_q1,emd_q2)
-        rep_t1, rep_t2 = share_layer(emd_t1, emd_t2)
-        q1_t1_dist = dist([rep_q1, rep_t1])
-        q2_t2_dist = dist([rep_q2, rep_t2])
+        ngram_layer = _ngram_conv_layers(32, 3, 'same', 'relu', name='common')
+        emd_q1_ngrams = [layer(emd_q1) for layer in ngram_layer]
+        emd_t1_ngrams = [layer(emd_t1) for layer in ngram_layer]
+        emd_q2_ngrams = [layer(emd_q2) for layer in ngram_layer]
+        emd_t2_ngrams = [layer(emd_t2) for layer in ngram_layer]
+        matching_layer = MatchingLayer(matching_type='dot')
+        ngram_product1 = [matching_layer([m, n]) for m in emd_q1_ngrams for n in emd_t1_ngrams]
+        ngram_product2 = [matching_layer([m, n]) for m in emd_q2_ngrams for n in emd_t2_ngrams]
+        ngram_output1 = keras.layers.Concatenate(axis=-1, name='concate1')(ngram_product1)
+        ngram_output2 = keras.layers.Concatenate(axis=-1, name='concate1')(ngram_product2)
+        pool_layer = keras.layers.MaxPooling2D(pool_size=(3, 3), strides=(1, 1), padding='same')
+        flatten = keras.layers.Flatten()
 
-        x1 = concatenate([rep_q1, rep_t1, q1_t1_dist])
-        x2 = concatenate([rep_q2, rep_t2, q2_t2_dist])
-
+        x1 = pool_layer(ngram_output1)
+        x1 = flatten(x1)
+        x2 = pool_layer(ngram_output2)
+        x2 = flatten(x2)
+        
         for i in range(len(hidden_layer_sizes)):
             x1 = hidden_layers[i](x1)
             x2 = hidden_layers[i](x2)

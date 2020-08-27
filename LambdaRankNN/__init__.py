@@ -83,7 +83,7 @@ class RankerNN(object):
         ngram_product1 = [matching_layer([m, n]) for m in emd_q1_ngrams for n in emd_t1_ngrams]
         ngram_product2 = [matching_layer([m, n]) for m in emd_q2_ngrams for n in emd_t2_ngrams]
         ngram_output1 = keras.layers.Concatenate(axis=-1, name='concate1')(ngram_product1)
-        ngram_output2 = keras.layers.Concatenate(axis=-1, name='concate1')(ngram_product2)
+        ngram_output2 = keras.layers.Concatenate(axis=-1, name='concate2')(ngram_product2)
         pool_layer = keras.layers.MaxPooling2D(pool_size=(3, 3), strides=(1, 1), padding='same')
         flatten = keras.layers.Flatten()
 
